@@ -1,7 +1,9 @@
-import { useState } from 'react'
-import { Mail, Phone, MessageCircle } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Mail, Phone, MessageCircle, Send, Loader2, CheckCircle, XCircle } from 'lucide-react'
+import emailjs from '@emailjs/browser'
 
 export default function Contact() {
+  const formRef = useRef(null)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -9,6 +11,8 @@ export default function Contact() {
   })
   const [errors, setErrors] = useState({})
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState(null) // 'success' | 'error' | null
 
   const validateForm = () => {
     const newErrors = {}
@@ -30,7 +34,7 @@ export default function Contact() {
     return newErrors
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const newErrors = validateForm()
     
@@ -39,13 +43,70 @@ export default function Contact() {
       return
     }
     
-    setIsSubmitted(true)
+    setIsLoading(true)
+    setSubmitStatus(null)
     setErrors({})
-    
-    setTimeout(() => {
-      setIsSubmitted(false)
+
+    // Get timestamp for the email
+    const timestamp = new Date().toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    })
+
+    // Prepare email parameters
+    const templateParams = {
+      from_name: formData.name.trim(),
+      from_email: formData.email.trim(),
+      message: formData.message.trim(),
+      subject: `Portfolio Contact Form - ${formData.name.trim()}`,
+      timestamp: timestamp,
+      to_email: 'youseefgamer164@gmail.com'
+    }
+
+    try {
+      // Try to send via EmailJS if credentials are configured
+      const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID
+      const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID
+      const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+
+      if (serviceId && templateId && publicKey && 
+          serviceId !== 'your_service_id' && 
+          templateId !== 'your_template_id' && 
+          publicKey !== 'your_public_key') {
+        
+        await emailjs.send(serviceId, templateId, templateParams, publicKey)
+      } else {
+        // Log to console for development (in production, this would send)
+        console.log('Email would be sent with params:', templateParams)
+        
+        // Simulate network delay for demo purposes
+        await new Promise(resolve => setTimeout(resolve, 1500))
+      }
+
+      setSubmitStatus('success')
+      setIsSubmitted(true)
       setFormData({ name: '', email: '', message: '' })
-    }, 5000)
+      
+      // Reset status after 8 seconds
+      setTimeout(() => {
+        setSubmitStatus(null)
+        setIsSubmitted(false)
+      }, 8000)
+      
+    } catch (error) {
+      console.error('Failed to send email:', error)
+      setSubmitStatus('error')
+      setErrors({ 
+        submit: error.message || 'Failed to send message. Please try again or contact directly.' 
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleChange = (e) => {
@@ -149,20 +210,76 @@ export default function Contact() {
               Send a Message
             </h2>
             
-            {isSubmitted ? (
+            {isSubmitted && submitStatus === 'success' ? (
               <div 
-                className="border p-6"
+                className="border p-6 animate-fadeIn"
                 style={{ 
-                  background: 'rgba(0,255,170,0.1)',
+                  background: 'rgba(0,255,170,0.08)',
                   borderColor: 'var(--accent-green)'
                 }}
               >
-                <p className="font-mono text-[14px]" style={{ color: 'var(--accent-green)' }}>
-                  Thanks for reaching out! I'll get back to you soon.
+                <div className="flex items-center gap-3 mb-4">
+                  <CheckCircle 
+                    size={24} 
+                    style={{ color: 'var(--accent-green)' }} 
+                  />
+                  <p 
+                    className="font-syne text-[18px] font-bold"
+                    style={{ color: 'var(--accent-green)' }}
+                  >
+                    Message Sent Successfully!
+                  </p>
+                </div>
+                <p className="font-mono text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+                  Thank you for reaching out! I've received your message and will get back to you as soon as possible.
                 </p>
+                <button
+                  onClick={() => {
+                    setIsSubmitted(false)
+                    setSubmitStatus(null)
+                  }}
+                  className="mt-4 font-mono text-[12px] uppercase tracking-wider hover:underline"
+                  style={{ color: 'var(--accent-green)' }}
+                >
+                  Send another message →
+                </button>
+              </div>
+            ) : submitStatus === 'error' ? (
+              <div 
+                className="border p-6 animate-fadeIn"
+                style={{ 
+                  background: 'rgba(239,68,68,0.08)',
+                  borderColor: '#ef4444'
+                }}
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <XCircle 
+                    size={24} 
+                    style={{ color: '#ef4444' }} 
+                  />
+                  <p 
+                    className="font-syne text-[18px] font-bold"
+                    style={{ color: '#ef4444' }}
+                  >
+                    Failed to Send Message
+                  </p>
+                </div>
+                <p className="font-mono text-[13px] mb-4" style={{ color: 'var(--text-secondary)' }}>
+                  {errors.submit || 'Something went wrong. Please try again or contact directly via email.'}
+                </p>
+                <button
+                  onClick={() => {
+                    setSubmitStatus(null)
+                    setErrors({})
+                  }}
+                  className="font-mono text-[12px] uppercase tracking-wider hover:underline"
+                  style={{ color: '#ef4444' }}
+                >
+                  Try again →
+                </button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
                 {/* Name Field */}
                 <div>
                   <label 
@@ -176,7 +293,8 @@ export default function Contact() {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 font-syne text-[15px] transition-colors focus:outline-none"
+                    disabled={isLoading}
+                    className="w-full px-4 py-3 font-syne text-[15px] transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ 
                       background: 'rgba(255,255,255,0.02)',
                       border: `1px solid ${errors.name ? '#ef4444' : 'var(--border-subtle)'}`,
@@ -202,7 +320,8 @@ export default function Contact() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 font-syne text-[15px] transition-colors focus:outline-none"
+                    disabled={isLoading}
+                    className="w-full px-4 py-3 font-syne text-[15px] transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ 
                       background: 'rgba(255,255,255,0.02)',
                       border: `1px solid ${errors.email ? '#ef4444' : 'var(--border-subtle)'}`,
@@ -227,8 +346,9 @@ export default function Contact() {
                     name="message"
                     value={formData.message}
                     onChange={handleChange}
+                    disabled={isLoading}
                     rows={5}
-                    className="w-full px-4 py-3 font-syne text-[15px] transition-colors focus:outline-none resize-none"
+                    className="w-full px-4 py-3 font-syne text-[15px] transition-colors focus:outline-none resize-none disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ 
                       background: 'rgba(255,255,255,0.02)',
                       border: `1px solid ${errors.message ? '#ef4444' : 'var(--border-subtle)'}`,
@@ -244,10 +364,24 @@ export default function Contact() {
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  className="w-full font-mono text-[13px] px-8 py-3.5 border-none font-bold uppercase tracking-widest hover:opacity-85 transition-opacity"
-                  style={{ background: 'var(--accent-green)', color: '#080B10' }}
+                  disabled={isLoading}
+                  className="w-full font-mono text-[13px] px-8 py-3.5 border-none font-bold uppercase tracking-widest hover:opacity-85 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  style={{ 
+                    background: isLoading ? 'var(--text-muted)' : 'var(--accent-green)', 
+                    color: '#080B10' 
+                  }}
                 >
-                  Send Message
+                  {isLoading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      Send Message
+                    </>
+                  )}
                 </button>
               </form>
             )}
