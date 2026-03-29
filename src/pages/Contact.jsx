@@ -55,25 +55,12 @@ export default function Contact() {
     setSubmitStatus(null)
     setErrors({})
 
-    // Get timestamp for the email
-    const timestamp = new Date().toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZoneName: 'short'
-    })
-
     // Prepare email parameters
     const templateParams = {
       from_name: formData.name.trim(),
       from_email: formData.email.trim(),
       message: formData.message.trim(),
-      subject: `Portfolio Contact Form - ${formData.name.trim()}`,
-      timestamp: timestamp,
-      to_email: 'youseefgamer164@gmail.com'
+      subject: `Portfolio Contact Form - ${formData.name.trim()}`
     }
 
     try {
