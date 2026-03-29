@@ -69,41 +69,67 @@ export default function Contact() {
     }
 
     try {
-      // Try to send via EmailJS if credentials are configured
       const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID
       const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID
       const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY
 
-      if (serviceId && templateId && publicKey && 
+      console.log('EmailJS Config Check:', {
+        serviceId: serviceId || 'NOT_SET',
+        templateId: templateId || 'NOT_SET',
+        publicKey: publicKey ? 'SET' : 'NOT_SET'
+      })
+
+      const isConfigured = serviceId && templateId && publicKey && 
           serviceId !== 'your_service_id' && 
           templateId !== 'your_template_id' && 
-          publicKey !== 'your_public_key') {
-        
+          publicKey !== 'your_public_key'
+
+      if (isConfigured) {
+        console.log('Attempting to send email via EmailJS...')
         await emailjs.send(serviceId, templateId, templateParams, publicKey)
+        console.log('Email sent successfully!')
       } else {
-        // Log to console for development (in production, this would send)
-        console.log('Email would be sent with params:', templateParams)
-        
-        // Simulate network delay for demo purposes
-        await new Promise(resolve => setTimeout(resolve, 1500))
+        console.log('Email credentials not configured. Showing fallback message.')
+        setSubmitStatus('error')
+        setErrors({ 
+          submit: 'Email service not configured. Please contact directly.' 
+        })
+        setIsLoading(false)
+        return
       }
 
       setSubmitStatus('success')
       setIsSubmitted(true)
       setFormData({ name: '', email: '', message: '' })
       
-      // Reset status after 8 seconds
       setTimeout(() => {
         setSubmitStatus(null)
         setIsSubmitted(false)
       }, 8000)
       
     } catch (error) {
-      console.error('Failed to send email:', error)
-      setSubmitStatus('error')
-      setErrors({ 
-        submit: error.message || 'Failed to send message. Please try again or contact directly.' 
+      console.error('EmailJS Error Details:', {
+        name: error.name,
+        message: error.message,
+        status: error.status,
+        text: error.text
       })
+      
+      setSubmitStatus('error')
+      
+      let errorMessage = 'Failed to send message. Please try again or contact directly.'
+      
+      if (error.status === 400 || error.text?.includes('Template not found')) {
+        errorMessage = 'Email template not found. Please contact directly.'
+      } else if (error.status === 401 || error.text?.includes('Unauthorized')) {
+        errorMessage = 'Email service authentication failed. Please contact directly.'
+      } else if (error.status === -1 || error.message?.includes('Network')) {
+        errorMessage = 'Network error. Please check your connection or contact directly.'
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      setErrors({ submit: errorMessage })
     } finally {
       setIsLoading(false)
     }
