@@ -44,6 +44,14 @@ export default function Contact() {
     }
     
     setIsLoading(true)
+
+    // Debug: Check if env vars are loaded
+    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID
+    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID  
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+
+    alert(`DEBUG:\nService: ${serviceId || 'NOT FOUND'}\nTemplate: ${templateId || 'NOT FOUND'}\nPublic Key: ${publicKey ? 'FOUND' : 'NOT FOUND'}`)
+
     setSubmitStatus(null)
     setErrors({})
 
@@ -84,18 +92,23 @@ export default function Contact() {
           templateId !== 'your_template_id' && 
           publicKey !== 'your_public_key'
 
-      if (isConfigured) {
-        console.log('Attempting to send email via EmailJS...')
-        await emailjs.send(serviceId, templateId, templateParams, publicKey)
-        console.log('Email sent successfully!')
-      } else {
-        console.log('Email credentials not configured. Showing fallback message.')
+      if (!isConfigured) {
+        alert('Error: EmailJS not configured! Add VITE_EMAILJS_SERVICE_ID, VITE_EMAILJS_TEMPLATE_ID, VITE_EMAILJS_PUBLIC_KEY to Vercel environment variables.')
         setSubmitStatus('error')
         setErrors({ 
           submit: 'Email service not configured. Please contact directly.' 
         })
         setIsLoading(false)
         return
+      }
+
+      alert('Attempting to send email...')
+      try {
+        await emailjs.send(serviceId, templateId, templateParams, publicKey)
+        console.log('Email sent successfully!')
+      } catch (emailError) {
+        alert(`EmailJS Error: ${emailError.message}`)
+        throw emailError
       }
 
       setSubmitStatus('success')
