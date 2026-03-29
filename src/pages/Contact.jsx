@@ -48,17 +48,20 @@ export default function Contact() {
     setErrors({})
 
     try {
+      const payload = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        message: formData.message.trim()
+      }
+      console.log('Submitting form to Formspree:', payload)
+
       const response = await fetch(FORMSPREE_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          email: formData.email.trim(),
-          message: formData.message.trim()
-        })
+        body: JSON.stringify(payload)
       })
 
       if (response.ok) {
@@ -72,6 +75,7 @@ export default function Contact() {
         }, 8000)
       } else {
         const data = await response.json()
+        console.log('Formspree response error:', response.status, response.statusText, data)
         if (data.error) {
           setErrors({ submit: data.error })
         } else {
@@ -81,8 +85,9 @@ export default function Contact() {
       }
     } catch (error) {
       console.error('Form submission error:', error)
+      alert(`Error: ${error.message || 'Failed to send message. Please try again or contact directly.'}`)
       setSubmitStatus('error')
-      setErrors({ submit: 'Failed to send message. Please try again or contact directly.' })
+      setErrors({ submit: error.message || 'Failed to send message. Please try again or contact directly.' })
     } finally {
       setIsLoading(false)
     }
