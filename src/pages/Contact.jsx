@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { Mail, Phone, MessageCircle, Send, Loader2, CheckCircle, XCircle } from 'lucide-react'
-import emailjs from '@emailjs/browser'
+
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/YOUR_FORM_ID'
 
 export default function Contact() {
-  const formRef = useRef(null)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -12,7 +12,7 @@ export default function Contact() {
   const [errors, setErrors] = useState({})
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [submitStatus, setSubmitStatus] = useState(null) // 'success' | 'error' | null
+  const [submitStatus, setSubmitStatus] = useState(null)
 
   const validateForm = () => {
     const newErrors = {}
@@ -44,92 +44,45 @@ export default function Contact() {
     }
     
     setIsLoading(true)
-
-    // Debug: Check if env vars are loaded
-    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID
-    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID  
-    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-
-    alert(`DEBUG:\nService: ${serviceId || 'NOT FOUND'}\nTemplate: ${templateId || 'NOT FOUND'}\nPublic Key: ${publicKey ? 'FOUND' : 'NOT FOUND'}`)
-
     setSubmitStatus(null)
     setErrors({})
 
-    // Prepare email parameters
-    const templateParams = {
-      from_name: formData.name.trim(),
-      from_email: formData.email.trim(),
-      message: formData.message.trim(),
-      subject: `Portfolio Contact Form - ${formData.name.trim()}`
-    }
-
     try {
-      const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID
-      const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID
-      const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-
-      console.log('EmailJS Config Check:', {
-        serviceId: serviceId || 'NOT_SET',
-        templateId: templateId || 'NOT_SET',
-        publicKey: publicKey ? 'SET' : 'NOT_SET'
-      })
-
-      const isConfigured = serviceId && templateId && publicKey && 
-          serviceId !== 'your_service_id' && 
-          templateId !== 'your_template_id' && 
-          publicKey !== 'your_public_key'
-
-      if (!isConfigured) {
-        alert('Error: EmailJS not configured! Add VITE_EMAILJS_SERVICE_ID, VITE_EMAILJS_TEMPLATE_ID, VITE_EMAILJS_PUBLIC_KEY to Vercel environment variables.')
-        setSubmitStatus('error')
-        setErrors({ 
-          submit: 'Email service not configured. Please contact directly.' 
+      const response = await fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          message: formData.message.trim()
         })
-        setIsLoading(false)
-        return
-      }
-
-      alert('Attempting to send email...')
-      try {
-        await emailjs.send(serviceId, templateId, templateParams, publicKey)
-        console.log('Email sent successfully!')
-      } catch (emailError) {
-        alert(`EmailJS Error: ${emailError.message}`)
-        throw emailError
-      }
-
-      setSubmitStatus('success')
-      setIsSubmitted(true)
-      setFormData({ name: '', email: '', message: '' })
-      
-      setTimeout(() => {
-        setSubmitStatus(null)
-        setIsSubmitted(false)
-      }, 8000)
-      
-    } catch (error) {
-      console.error('EmailJS Error Details:', {
-        name: error.name,
-        message: error.message,
-        status: error.status,
-        text: error.text
       })
-      
-      setSubmitStatus('error')
-      
-      let errorMessage = 'Failed to send message. Please try again or contact directly.'
-      
-      if (error.status === 400 || error.text?.includes('Template not found')) {
-        errorMessage = 'Email template not found. Please contact directly.'
-      } else if (error.status === 401 || error.text?.includes('Unauthorized')) {
-        errorMessage = 'Email service authentication failed. Please contact directly.'
-      } else if (error.status === -1 || error.message?.includes('Network')) {
-        errorMessage = 'Network error. Please check your connection or contact directly.'
-      } else if (error.message) {
-        errorMessage = error.message
+
+      if (response.ok) {
+        setSubmitStatus('success')
+        setIsSubmitted(true)
+        setFormData({ name: '', email: '', message: '' })
+        
+        setTimeout(() => {
+          setSubmitStatus(null)
+          setIsSubmitted(false)
+        }, 8000)
+      } else {
+        const data = await response.json()
+        if (data.error) {
+          setErrors({ submit: data.error })
+        } else {
+          setErrors({ submit: 'Failed to send message. Please try again.' })
+        }
+        setSubmitStatus('error')
       }
-      
-      setErrors({ submit: errorMessage })
+    } catch (error) {
+      console.error('Form submission error:', error)
+      setSubmitStatus('error')
+      setErrors({ submit: 'Failed to send message. Please try again or contact directly.' })
     } finally {
       setIsLoading(false)
     }
@@ -305,7 +258,7 @@ export default function Contact() {
                 </button>
               </div>
             ) : (
-              <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Name Field */}
                 <div>
                   <label 
